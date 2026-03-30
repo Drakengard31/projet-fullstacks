@@ -6,6 +6,7 @@ type Task = {
     _id: string;
     title: string;
     description: string;
+    status: string;
 };
 
 export default function Dashboard() {
@@ -14,23 +15,19 @@ export default function Dashboard() {
     const [description, setDescription] = useState("");
     const [loading, setLoading] = useState(false);
 
+    const [editId, setEditId] = useState<string | null>(null);
+
     const navigate = useNavigate();
 
-    // 🔐 protection
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (!token) navigate("/login");
     }, []);
 
-    // 📦 fetch
     const fetchTasks = async () => {
         setLoading(true);
-        try {
-            const res = await API.get("/tasks");
-            setTasks(res.data);
-        } catch (err) {
-            console.error(err);
-        }
+        const res = await API.get("/tasks");
+        setTasks(res.data);
         setLoading(false);
     };
 
@@ -38,65 +35,88 @@ export default function Dashboard() {
         fetchTasks();
     }, []);
 
-    // ➕ create
-    const createTask = async () => {
-        if (!title) {
-            alert("Le titre est obligatoire");
-            return;
-        }
+    // ➕ CREATE ou UPDATE
+    const handleSubmit = async () => {
+        if (!title) return;
 
-        try {
+        if (editId) {
+            await API.put(`/tasks/${editId}`, {
+                title,
+                description,
+            });
+            alert("Tâche modifiée ✏️");
+        } else {
             await API.post("/tasks", {
                 title,
                 description,
                 status: "todo",
                 priority: "low",
             });
-
-            setTitle("");
-            setDescription("");
-
             alert("Tâche ajoutée ✅");
-            fetchTasks();
-        } catch (err) {
-            console.error(err);
         }
+
+        setTitle("");
+        setDescription("");
+        setEditId(null);
+        fetchTasks();
     };
 
-    // ❌ delete
+    // ❌ DELETE
     const deleteTask = async (id: string) => {
-        try {
-            await API.delete(`/tasks/${id}`);
-            alert("Tâche supprimée ❌");
-            fetchTasks();
-        } catch (err) {
-            console.error(err);
-        }
+        await API.delete(`/tasks/${id}`);
+        fetchTasks();
     };
 
-    // 🚪 logout
+    // ✏️ EDIT
+    const startEdit = (task: Task) => {
+        setTitle(task.title);
+        setDescription(task.description);
+        setEditId(task._id);
+    };
+
+    // 🔄 STATUS
+    const toggleStatus = async (task: Task) => {
+        await API.put(`/tasks/${task._id}`, {
+            ...task,
+            status: task.status === "todo" ? "done" : "todo",
+        });
+
+        fetchTasks();
+    };
+
     const logout = () => {
         localStorage.removeItem("token");
         navigate("/login");
     };
 
+    // 🎯 FILTER
+    const [filter, setFilter] = useState("all");
+
+    const filteredTasks = tasks.filter((task) => {
+        if (filter === "done") return task.status === "done";
+        if (filter === "todo") return task.status === "todo";
+        return true;
+    });
+
     return (
         <div className="min-h-screen bg-gray-100 p-6">
             {/* HEADER */}
-            <div className="max-w-4xl mx-auto flex justify-between items-center mb-6">
+            <div className="max-w-4xl mx-auto flex justify-between mb-6">
                 <h1 className="text-2xl font-bold">DevTasks 🚀</h1>
-                <button
-                    onClick={logout}
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg"
-                >
+                <button onClick={logout} className="bg-red-500 text-white px-4 py-2 rounded">
                     Logout
                 </button>
             </div>
 
+            {/* FILTER */}
+            <div className="max-w-4xl mx-auto mb-4 flex gap-2">
+                <button onClick={() => setFilter("all")}>Toutes</button>
+                <button onClick={() => setFilter("todo")}>À faire</button>
+                <button onClick={() => setFilter("done")}>Terminées</button>
+            </div>
+
             {/* FORM */}
             <div className="max-w-4xl mx-auto bg-white p-4 rounded-xl shadow mb-6">
-                <h2 className="font-semibold mb-3">Ajouter une tâche</h2>
-
                 <div className="flex gap-2">
                     <input
                         className="border p-2 rounded w-1/3"
@@ -113,42 +133,37 @@ export default function Dashboard() {
                     />
 
                     <button
-                        onClick={createTask}
+                        onClick={handleSubmit}
                         className="bg-blue-500 text-white px-4 rounded"
                     >
-                        Ajouter
+                        {editId ? "Modifier" : "Ajouter"}
                     </button>
                 </div>
             </div>
 
-            {/* LOADING */}
-            {loading && <p className="text-center">Chargement...</p>}
-
-            {/* EMPTY */}
-            {!loading && tasks.length === 0 && (
-                <p className="text-center text-gray-500">
-                    Aucune tâche pour le moment 👀
-                </p>
-            )}
-
             {/* TASKS */}
             <div className="max-w-4xl mx-auto grid gap-4">
-                {tasks.map((task) => (
+                {filteredTasks.map((task) => (
                     <div
                         key={task._id}
-                        className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition flex justify-between items-center"
+                        className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
                     >
                         <div>
-                            <h3 className="font-bold">{task.title}</h3>
+                            <h3 className={`font-bold ${task.status === "done" ? "line-through" : ""}`}>
+                                {task.title}
+                            </h3>
                             <p className="text-gray-500">{task.description}</p>
                         </div>
 
-                        <button
-                            onClick={() => deleteTask(task._id)}
-                            className="bg-red-400 text-white px-3 py-1 rounded"
-                        >
-                            Supprimer
-                        </button>
+                        <div className="flex gap-2">
+                            <button onClick={() => toggleStatus(task)}>
+                                {task.status === "done" ? "Undo" : "Done"}
+                            </button>
+
+                            <button onClick={() => startEdit(task)}>✏️</button>
+
+                            <button onClick={() => deleteTask(task._id)}>❌</button>
+                        </div>
                     </div>
                 ))}
             </div>
