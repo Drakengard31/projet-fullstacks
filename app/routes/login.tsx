@@ -30,14 +30,16 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-900">
             <div className="bg-white p-6 rounded-xl shadow w-80">
-                <h1 className="text-xl font-bold mb-4 text-center">Connexion</h1>
+                <h1 className="text-xl font-bold mb-4 text-center">
+                    Connexion
+                </h1>
 
                 <input
                     type="email"
                     placeholder="Email"
-                    className="border p-2 rounded w-full mb-3"
+                    className="border p-2 rounded w-full mb-3 text-gray-900 bg-white"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                 />
@@ -45,14 +47,14 @@ export default function Login() {
                 <input
                     type="password"
                     placeholder="Mot de passe"
-                    className="border p-2 rounded w-full mb-3"
+                    className="border p-2 rounded w-full mb-3 text-gray-900 bg-white"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                 />
 
                 <button
                     onClick={handleLogin}
-                    className="bg-blue-500 text-white w-full py-2 rounded"
+                    className="bg-blue-500 text-white w-full py-2 rounded hover:bg-blue-600 transition"
                 >
                     Se connecter
                 </button>
